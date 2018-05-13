@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="stylesheet" type="text/css" href="style.css">
+<link href="https://fonts.googleapis.com/css?family=Ubuntu" rel="stylesheet">
+<script type="text/javascript" src="script.js" ></script>
+</head>
+<body onload="reset();">
+
+<h1>ZimSim VI: Return of the Endowment</h1>
+
+<h2>$$ <span id="money"></span></h2>
+<h3><span id="rate"></span> per second</h3>
+
+<br>
+<div class="container">
+    <div class="theDun">
+        <img src="http://i66.tinypic.com/14ecegw.png">
+    </div>
+    <div class="clickerButton">
+        <button onclick="beg();">Beg for Donors</button>
+    </div>
+    <div class="itemsForSaleContainer">
+        <button onclick="buyItem();" id="currentItem"></button>
+        <div>
+            <div>Cost: $<span id="itemCost"></span></div>
+            <div>Reward: $<span id="itemRate"></span> per second</div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>
