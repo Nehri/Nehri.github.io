@@ -1,0 +1,164 @@
+<html>
+
+  <head>
+    <title>Rhythm</title>
+    <script language="javascript" type="text/javascript" src="libraries/p5.js"></script>
+    <script language="javascript" src="libraries/p5.sound.js"></script>
+    <script type="text/javascript" src="out.js"></script>
+    <meta charset="UTF-8">
+    <style type="text/css" media="screen">
+        #editor {
+            position: relative;
+            /*top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;*/
+        }
+    </style>
+    </head>
+
+    <body style="margin: 0 0 0 0; background-image: url('https://ia.media-imdb.com/images/M/MV5BY2EzYmM5ZmQtNDZkYi00Njc4LWFmOTYtNGVlNTEwYWUxYTFkL2ltYWdlXkEyXkFqcGdeQXVyMTczMDQzNzc@._V1_SY1000_CR0,0,632,1000_AL_.jpg');">
+        <div id="main"></div>
+    </body>
+
+    <script>
+      // initialize the ports
+      var init_ampharos_data = {
+        amplitude     : 0.0,
+        bass_energy   : 0.0,
+        low_energy    : 0.0,
+        mid_energy    : 0.0,
+        high_energy   : 0.0,
+        treble_energy : 0.0,
+      }
+      var init_flaaffy_data = {
+        peaks : [],
+        start : 0,
+        bpm   : 0.0,
+      }
+      // Start up Elm
+      var elmRuntime = Elm.fullscreen(Elm.Main,
+        {"ampharos" : init_ampharos_data, "flaaffy" : init_flaaffy_data});
+      elmRuntime.ports.ampharos.send(init_ampharos_data);
+      elmRuntime.ports.flaaffy.send(init_flaaffy_data);
+
+      //gloabls
+      var mySound;
+      var reversed;
+      var amp;
+      var fft;
+      var dur;
+      var bpm;
+      var targetPeaks;
+      var peaks = [];
+
+      //called before html finishes loading
+      function preload() {
+       mySound = loadSound('soundfile.mp3');
+       reversed = loadSound('soundfile.mp3');
+       amp = new p5.Amplitude();
+       fft = new p5.FFT();
+      }
+
+      //called once preload is done
+      function setup() {
+        //define some globals for readability/efficiency
+        dur = mySound.duration();
+        //targetPeaks = dur*3;
+        targetPeaks = dur*2;
+        reversed.reverseBuffer();
+
+        //start with the backwards analysis
+        reversed.processPeaks(intermediate,0.9,0.1,targetPeaks);
+      }
+
+      //since it seems the p5 processPeaks function gains accuracy overtime,
+      //and drops most peaks from the first 10% of the song,
+      //we do an analysis of the reversed data to get good info for the first half of the song
+      function intermediate(reversedPeakData,reversedTempo){
+
+        //get data for the first half of the song
+        for (var i = 0; i < reversedPeakData.length; i++) {
+          if (0 < (dur-reversedPeakData[i]) &&  (dur-reversedPeakData[i]) < (dur/2)) {
+            peaks.push(dur-reversedPeakData[i]);
+          }
+        }
+
+        //move on to the normal analysis
+        mySound.processPeaks(initialize,0.9,0.1,targetPeaks);
+      }
+
+      //does the normal analysis, then starts playing the song
+      function initialize(peakData,tempo) {
+
+        //get data for the second half of the song
+        for (var i = 0; i < peakData.length; i++) {
+          if (dur/2 < peakData[i] &&  peakData[i] < dur) {
+            peaks.push(peakData[i]);
+          }
+        }
+
+        bpm = tempo; //store tempo data
+        //not sure why some are out of order, but this fixes that
+        peaks.sort(function(a, b){return a-b});
+
+        //now that time expensive pre-processing is over, start the game
+        start();
+        setInterval(start, dur*1000);
+        setInterval(sendRealtimeData, 66);
+      }
+
+      //sends realtime amplitude data to ampharos
+      function sendRealtimeData() {
+
+        fft.analyze();
+        var data = {
+          amplitude : amp.getLevel(),
+          bass_energy : fft.getEnergy("bass"),
+          low_energy : fft.getEnergy("lowMid"),
+          mid_energy : fft.getEnergy("mid"),
+          high_energy : fft.getEnergy("highMid"),
+          treble_energy : fft.getEnergy("treble"),
+        }
+
+        elmRuntime.ports.ampharos.send(data);
+      }
+
+      //playss song and sends initial data through flaaffy
+      function start() {
+
+        var d = new Date();
+        var start = d.getTime();
+
+        //start playing the song
+        mySound.setVolume(1);
+        mySound.play();
+
+        var data = {
+          peaks : peaks,
+          start : start,
+          bpm   : bpm,
+        }
+
+        elmRuntime.ports.flaaffy.send(data);
+      }
+
+      function toList(arr){
+        var Nil = { ctor: '[]' };
+        var out = Nil;
+        for (var i = arr.length; i--; )
+        {
+          out = Cons(arr[i], out);
+        }
+        return out;
+      }
+      function Cons(hd, tl){
+        return {
+          ctor: '::',
+          _0: hd,
+          _1: tl
+        };
+      }
+
+    </script>
+</html>
